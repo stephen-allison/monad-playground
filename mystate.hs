@@ -71,14 +71,31 @@ runCalc calc = fst $ stfn calc []
 push n v = ST $ \st -> (v, n:st)
 add v = ST $ \st -> let val = sum st in (val, [val])
 mul v = ST $ \st -> let val = foldr (*) 1 st in (val, [val])
+clear _ = newCalc
 
 calc = newCalc >>= push 1 >>= push 2 >>= add >>= push 3 >>= mul
+
+-- >> :: Ma -> Mb -> Mb so we don't need fns that accept
+-- value from previous operation as we do with >>=
+push' n = ST $ \st -> ((), n:st)
+add' = ST $ \st -> let val = sum st in (val, [val])
+mul' = ST $ \st -> let val = foldr (*) 1 st in (val, [val])
+clear' = newCalc
+
+calc' = newCalc >> push' 1 >> push' 3 >> add' >> push' 7 >> mul'
+
 
 -- since ST is applicative can do combine, sequence etc
 calc1 = newCalc >>= push 2 >>= push 3 >>= add
 calc2 = newCalc >>= push 3 >>= push 5 >>= mul
 addCalcs = (+) <$> calc1 <*> calc2
 sumCalcs = sum <$> sequence [calc1, calc2, calc1]
+
+docalc :: ST [Int] Int
+docalc = do
+  push' 3
+  push' 20
+  add'
 
 main = do
   putStrLn $ showResult (stfn testFmap 0) (97,0)
@@ -90,6 +107,8 @@ main = do
   putStrLn $ showResult (runCalc calc2) 15
   putStrLn $ showResult (runCalc addCalcs) ((runCalc calc1)+(runCalc calc2) )
   putStrLn $ showResult (runCalc sumCalcs) (2*(runCalc calc1)+(runCalc calc2) )
+  putStrLn $ showResult (runCalc docalc) 23
+  putStrLn $ showResult (runCalc calc') 28
 
 
 
