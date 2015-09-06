@@ -20,6 +20,12 @@ instance Functor ST where
 
 instance Applicative ST where
   pure a = ST $ \st -> (a, st)
+
+  {-
+  (<*>) :: Applicative f => f (a -> b) -> f a -> f b
+  this means the value yielded by the state function 'f'
+  in (ST f) is a function a -> b
+  -}
   (ST f) <*> (ST g) = ST $ \st -> let (fn, s1) = f st
                                       (a, s2) = g s1
                                    in (fn a, s2)
@@ -35,17 +41,38 @@ next str = ST $ \st -> ((chr st):str, st+1)
 jump :: State -> a -> ST a
 jump n str = ST $ \st -> (str, st + n)
 
-test1 :: ST String
-test1 = return "!"
-         >>= next     -- add 'a'
-         >>= next     -- add 'b'
-         >>= jump 2   -- skip c, d
-         >>= next     -- add 'e'
 
-test2 :: ST String
-test2 = let ops = [next, next, jump 2, next, next]
-        in foldr (=<<) (return "!") ops
+testFmap :: ST Int
+testFmap = fmap ord $ return 'a'
+
+testApply :: ST String
+testApply = let s1 = return "hello "
+                s2 = return "world"
+                in (++) <$> s1 <*> s2
+
+testBind :: ST String
+testBind = return "!"
+           >>= next     -- add 'a'
+           >>= next     -- add 'b'
+           >>= jump 2   -- skip c, d
+           >>= next     -- add 'e'
+
+testBindViaFold :: ST String
+testBindViaFold = let ops = [next, next, jump 2, next, next]
+                  in foldr (=<<) (return "!") ops
+
+
 
 main = do
-  putStrLn $ show $ stfn test1 97
-  putStrLn $ show $ stfn test2 97
+  putStrLn $ showResult (stfn testFmap 0) (97,0)
+  putStrLn $ showResult (stfn testApply 0) ("hello world", 0)
+  putStrLn $ showResult (stfn testBind 97) ("eba!", 102)
+  putStrLn $ showResult (stfn testBindViaFold 97) ("feba!", 103)
+
+showResult result expected =
+  let (msg,sign) = res (result == expected)
+  in
+    msg ++ "\t\t" ++ (show result) ++ " " ++ sign ++ " " ++ (show expected)
+
+res True = ("OK","==")
+res False = ("Fail","/=")
