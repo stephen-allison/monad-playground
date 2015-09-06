@@ -66,7 +66,7 @@ testBindViaFold = let ops = [next, next, jump 2, next, next]
 newCalc :: ST [Int] Int
 newCalc = ST $ \_ -> (0,[])
 
-runCalc calc = stfn calc []
+runCalc calc = fst $ stfn calc []
 
 push n v = ST $ \st -> (v, n:st)
 add v = ST $ \st -> let val = sum st in (val, [val])
@@ -74,13 +74,24 @@ mul v = ST $ \st -> let val = foldr (*) 1 st in (val, [val])
 
 calc = newCalc >>= push 1 >>= push 2 >>= add >>= push 3 >>= mul
 
+-- since ST is applicative can do combine, sequence etc
+calc1 = newCalc >>= push 2 >>= push 3 >>= add
+calc2 = newCalc >>= push 3 >>= push 5 >>= mul
+addCalcs = (+) <$> calc1 <*> calc2
+sumCalcs = sum <$> sequence [calc1, calc2, calc1]
 
 main = do
   putStrLn $ showResult (stfn testFmap 0) (97,0)
   putStrLn $ showResult (stfn testApply 0) ("hello world", 0)
   putStrLn $ showResult (stfn testBind 97) ("eba!", 102)
   putStrLn $ showResult (stfn testBindViaFold 97) ("feba!", 103)
-  putStrLn $ showResult (runCalc calc) (9,[9])
+  putStrLn $ showResult (runCalc calc) 9
+  putStrLn $ showResult (runCalc calc1) 5
+  putStrLn $ showResult (runCalc calc2) 15
+  putStrLn $ showResult (runCalc addCalcs) ((runCalc calc1)+(runCalc calc2) )
+  putStrLn $ showResult (runCalc sumCalcs) (2*(runCalc calc1)+(runCalc calc2) )
+
+
 
 showResult result expected =
   let (msg,sign) = res (result == expected)
