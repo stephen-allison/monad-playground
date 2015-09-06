@@ -63,11 +63,24 @@ testBindViaFold = let ops = [next, next, jump 2, next, next]
 
 
 
+newCalc :: ST [Int] Int
+newCalc = ST $ \_ -> (0,[])
+
+runCalc calc = stfn calc []
+
+push n v = ST $ \st -> (v, n:st)
+add v = ST $ \st -> let val = sum st in (val, [val])
+mul v = ST $ \st -> let val = foldr (*) 1 st in (val, [val])
+
+calc = newCalc >>= push 1 >>= push 2 >>= add >>= push 3 >>= mul
+
+
 main = do
   putStrLn $ showResult (stfn testFmap 0) (97,0)
   putStrLn $ showResult (stfn testApply 0) ("hello world", 0)
   putStrLn $ showResult (stfn testBind 97) ("eba!", 102)
   putStrLn $ showResult (stfn testBindViaFold 97) ("feba!", 103)
+  putStrLn $ showResult (runCalc calc) (9,[9])
 
 showResult result expected =
   let (msg,sign) = res (result == expected)
