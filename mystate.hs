@@ -9,16 +9,16 @@ type State = Int -- state represented as Int
 
 -- type ST holds a 'state function'
 -- this function takes a state and generates a value and an updated state
-newtype ST a = ST { stfn :: State -> (a, State) }
+newtype ST s a = ST { stfn :: s -> (a, s) }
 
 
-instance Functor ST where
+instance Functor (ST s) where
   -- change ST a -> ST b
   -- calculate state (a, State) then just apply f
   fmap f st = ST $ \t -> let (a,s) = stfn st t in (f a, s)
 
 
-instance Applicative ST where
+instance Applicative (ST s) where
   pure a = ST $ \st -> (a, st)
 
   {-
@@ -31,33 +31,33 @@ instance Applicative ST where
                                    in (fn a, s2)
 
 
-instance Monad ST where
+instance Monad (ST s) where
   return a = ST $ \st -> (a, st)
   (ST stf) >>= f = ST $ \t -> let (a, s) = stf t in stfn (f a) s
 
-next :: String -> ST String
+next :: String -> ST State String
 next str = ST $ \st -> ((chr st):str, st+1)
 
-jump :: State -> a -> ST a
+jump :: State -> a -> ST Int a
 jump n str = ST $ \st -> (str, st + n)
 
 
-testFmap :: ST Int
+testFmap :: ST State Int
 testFmap = fmap ord $ return 'a'
 
-testApply :: ST String
+testApply :: ST Int String
 testApply = let s1 = return "hello "
                 s2 = return "world"
                 in (++) <$> s1 <*> s2
 
-testBind :: ST String
+testBind :: ST State String
 testBind = return "!"
            >>= next     -- add 'a'
            >>= next     -- add 'b'
            >>= jump 2   -- skip c, d
            >>= next     -- add 'e'
 
-testBindViaFold :: ST String
+testBindViaFold :: ST State String
 testBindViaFold = let ops = [next, next, jump 2, next, next]
                   in foldr (=<<) (return "!") ops
 
